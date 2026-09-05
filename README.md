@@ -4,11 +4,24 @@ A lightweight Windows Forms utility that fully removes **AVG Antivirus** from yo
 
 ---
 
+## Requirements
+
+| | |
+|---|---|
+| OS | **Windows 7 SP1** or later (Win 7 RTM and below are not supported) |
+| Runtime | .NET Framework 4.8 |
+| Privileges | **Administrator** required (UAC prompt on launch) |
+
+> .NET Framework 4.8 can be installed on Windows 7 SP1+ via [Microsoft's official download](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48).
+
+---
+
 ## How It Works
 
 ```
 Normal Mode (first run)
-  ├─ AVG not found  →  notify and exit
+  ├─ OS version < Win 7 SP1  →  error and exit
+  ├─ AVG not found           →  notify and exit
   └─ AVG detected
        ├─ Register RunOnce key (* prefix — fires in Safe Mode too)
        ├─ bcdedit safeboot minimal
@@ -42,27 +55,17 @@ Registry cleanup uses a 3-step fallback:
 
 ---
 
-## Requirements
-
-| | |
-|---|---|
-| OS | Windows 10 / 11 (64-bit) |
-| Runtime | .NET Framework 4.8 (pre-installed on Win 10+) |
-| Privileges | **Administrator** required (UAC prompt on launch) |
-
----
-
 ## Usage
 
-1. Double-click `frm_avg_unin_support_tool.exe`
+1. Double-click `Avg unin support tool.exe`
 2. Accept the UAC prompt
 3. If AVG is detected, the tool counts down 10 seconds then restarts into Safe Mode
-4. AVG removal tool (`avgclear.exe`) launches automatically — follow its on-screen steps
+4. The AVG removal tool (`avgclear.exe`) launches automatically — follow its on-screen steps
 5. The computer restarts back to Normal Mode
-6. Registry leftovers are cleaned silently
+6. Registry leftovers are cleaned silently in the background
 7. A confirmation screen appears — click **Close** to finish
 
-> **Cancel button** — available during the 10-second countdown. Clicking it aborts the process and reverts boot settings safely.
+> **Cancel button** — available during the 10-second countdown. Clicking it aborts the process and reverts all boot settings safely.
 
 ---
 
@@ -73,7 +76,7 @@ Visual Studio 2022 / 2019  (.NET Framework 4.8, WinForms)
 ```
 
 Open `frm_avg_unin_support_tool.slnx` and build in **Release** mode.  
-All resources (`avgclear.exe`, icon) are embedded into the output `.exe` — no extra files needed.
+All resources (`avgclear.exe`, icon) are embedded into the output `.exe` — no extra files needed alongside it.
 
 ---
 
