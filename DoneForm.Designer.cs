@@ -17,7 +17,7 @@ namespace frm_avg_unin_support_tool
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode       = System.Windows.Forms.AutoScaleMode.Font;
 
-            this.ClientSize      = new System.Drawing.Size(500, 200);
+            this.ClientSize      = new System.Drawing.Size(500, 220);
             this.Text            = "AVG Uninstaller Support Tool";
             this.BackColor       = System.Drawing.Color.White;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;

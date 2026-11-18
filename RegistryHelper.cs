@@ -9,18 +9,16 @@ namespace frm_avg_unin_support_tool
 {
     internal static class RegistryHelper
     {
-        // ── 4 — Named constants: no magic strings scattered through the code ──
         private const string AvgPersistentStorageName = "AvgPersistentStorage";
 
-        // ── 4 — Entry struct carries a validation flag instead of ad-hoc string checks
         private struct AvgRegistryEntry
         {
             public RegistryHive Hive;
             public string       Path;
             public RegistryView View;
             /// <summary>
-            /// When true, the entry is validated as AVG-owned before deletion to
-            /// prevent false-positive removal of unrelated software with similar names.
+            /// When true, verifies AVG-owned sub-keys before deletion to prevent
+            /// false-positive removal of unrelated software with similar names.
             /// </summary>
             public bool         ValidateOwner;
         }
@@ -49,29 +47,26 @@ namespace frm_avg_unin_support_tool
                 Path = @"SOFTWARE\Microsoft\PolicyManager\default\Defender\AvgCPULoadFactor" },
         };
 
-        // ── Entry point ───────────────────────────────────────────────────────
-
         internal static void CleanAvgRegistry()
         {
+            Logger.Write("RegistryHelper: CleanAvgRegistry — start");
             DisableRegistryVirtualization();
             EnablePrivileges();
 
             foreach (var entry in AvgKeys)
             {
-                // 4 + 9 — Validation flag drives the ownership check;
-                //          no hardcoded string comparisons in the loop
                 if (entry.ValidateOwner && !IsAvgOwnedPersistentStorage(entry.Hive, entry.Path, entry.View))
                 {
-                    Debug.WriteLine("Skipping " + entry.Path + ": AVG ownership not confirmed.");
+                    Logger.Write("RegistryHelper: skip {0} (AVG ownership not confirmed)", entry.Path);
                     continue;
                 }
                 TryDeleteKey(entry.Hive, entry.Path, entry.View);
             }
+            Logger.Write("RegistryHelper: CleanAvgRegistry — done");
         }
 
-        // ── False-positive guard (9) ──────────────────────────────────────────
-        // Verifies the key is AVG-created by checking for known AVG sub-keys
-        // (avg-av, avg-wl …) or the "GUID" value AVG always writes.
+        // ── False-positive guard ──────────────────────────────────────────────
+
         private static bool IsAvgOwnedPersistentStorage(RegistryHive hive, string path, RegistryView view)
         {
             try
@@ -87,35 +82,37 @@ namespace frm_avg_unin_support_tool
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("IsAvgOwnedPersistentStorage: " + ex.Message);
+                Logger.WriteException("RegistryHelper.IsAvgOwnedPersistentStorage", ex);
                 return false;
             }
         }
 
-        // ── Delete logic (3 steps + 6 existence checks) ───────────────────────
+        // ── 3-step delete with fallback ───────────────────────────────────────
 
         private static void TryDeleteKey(RegistryHive hive, string path, RegistryView view)
         {
-            if (!KeyExists(hive, path, view)) return;          // 6
+            if (!KeyExists(hive, path, view)) return;
+
+            Logger.Write("RegistryHelper: deleting {0}\\{1}", HiveStr(hive), path);
+
             if (DirectDelete(hive, path, view)) return;
 
-            if (!KeyExists(hive, path, view)) return;          // 6 re-check
+            if (!KeyExists(hive, path, view)) return;
             try { GrantFullControl(hive, path, view); }
-            catch (Exception ex) { Debug.WriteLine("GrantFullControl [" + path + "]: " + ex.Message); }
+            catch (Exception ex) { Logger.WriteException("RegistryHelper.GrantFullControl[" + path + "]", ex); }
 
             if (DirectDelete(hive, path, view)) return;
 
-            if (!KeyExists(hive, path, view)) return;          // 6 before shell fallback
+            if (!KeyExists(hive, path, view)) return;
             try
             {
-                string hiveStr = hive == RegistryHive.ClassesRoot  ? "HKCR" :
-                                 hive == RegistryHive.LocalMachine ? "HKLM" : "HKCU";
-                // 1 — /reg:64 forces reg.exe to operate on the 64-bit registry hive.
-                //     Without it, reg.exe inherits the calling process's WOW64 context
-                //     and may silently delete the wrong (32-bit) branch instead.
-                Program.RunSysCmd("reg.exe", "delete \"" + hiveStr + "\\" + path + "\" /f /reg:64");
+                // /reg:64 forces 64-bit hive; without it a 32-bit process silently
+                // operates on the WOW64-redirected branch instead.
+                Program.RunSysCmd("reg.exe",
+                    "delete \"" + HiveStr(hive) + "\\" + path + "\" /f /reg:64");
+                Logger.Write("RegistryHelper: shell fallback for {0}", path);
             }
-            catch (Exception ex) { Debug.WriteLine("reg.exe delete [" + path + "]: " + ex.Message); }
+            catch (Exception ex) { Logger.WriteException("RegistryHelper.ShellDelete[" + path + "]", ex); }
         }
 
         private static bool KeyExists(RegistryHive hive, string path, RegistryView view)
@@ -135,9 +132,10 @@ namespace frm_avg_unin_support_tool
             {
                 using (var root = RegistryKey.OpenBaseKey(hive, view))
                     root.DeleteSubKeyTree(path, throwOnMissingSubKey: false);
+                Logger.Write("RegistryHelper: deleted {0}", path);
                 return true;
             }
-            catch (Exception ex) { Debug.WriteLine("DirectDelete [" + path + "]: " + ex.Message); return false; }
+            catch (Exception ex) { Logger.WriteException("RegistryHelper.DirectDelete[" + path + "]", ex); return false; }
         }
 
         private static void GrantFullControl(RegistryHive hive, string path, RegistryView view)
@@ -172,12 +170,17 @@ namespace frm_avg_unin_support_tool
             }
         }
 
+        private static string HiveStr(RegistryHive hive)
+            => hive == RegistryHive.ClassesRoot  ? "HKCR"
+             : hive == RegistryHive.LocalMachine ? "HKLM"
+             : "HKCU";
+
         // ── P/Invoke ──────────────────────────────────────────────────────────
 
-        private const uint TOKEN_QUERY              = 0x0008;
-        private const uint TOKEN_ADJUST_PRIVILEGES  = 0x0020;
-        private const uint TOKEN_ADJUST_DEFAULT     = 0x0080;
-        private const uint SE_PRIVILEGE_ENABLED     = 0x0002;
+        private const uint TOKEN_QUERY             = 0x0008;
+        private const uint TOKEN_ADJUST_PRIVILEGES = 0x0020;
+        private const uint TOKEN_ADJUST_DEFAULT    = 0x0080;
+        private const uint SE_PRIVILEGE_ENABLED    = 0x0002;
         private const int  TOKEN_VIRTUALIZATION_ENABLED = 24;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -216,14 +219,13 @@ namespace frm_avg_unin_support_tool
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr hObject);
 
-        // ── 11 — Disable UAC Registry Virtualization ──────────────────────────
         private static void DisableRegistryVirtualization()
         {
             IntPtr token;
-            if (!OpenProcessToken(Process.GetCurrentProcess().Handle,
+            if (!OpenProcessToken(System.Diagnostics.Process.GetCurrentProcess().Handle,
                     TOKEN_QUERY | TOKEN_ADJUST_DEFAULT, out token))
             {
-                Debug.WriteLine("DisableRegistryVirtualization: OpenProcessToken failed, err=" +
+                Logger.Write("DisableRegistryVirtualization: OpenProcessToken failed err={0}",
                     Marshal.GetLastWin32Error());
                 return;
             }
@@ -231,17 +233,16 @@ namespace frm_avg_unin_support_tool
             {
                 uint disabled = 0;
                 if (!SetTokenInformation(token, TOKEN_VIRTUALIZATION_ENABLED, ref disabled, 4))
-                    Debug.WriteLine("DisableRegistryVirtualization: failed, err=" +
+                    Logger.Write("DisableRegistryVirtualization: failed err={0}",
                         Marshal.GetLastWin32Error());
             }
             finally { CloseHandle(token); }
         }
 
-        // ── 8 — Enable privileges ─────────────────────────────────────────────
         private static void EnablePrivileges()
         {
             IntPtr token;
-            if (!OpenProcessToken(Process.GetCurrentProcess().Handle,
+            if (!OpenProcessToken(System.Diagnostics.Process.GetCurrentProcess().Handle,
                     TOKEN_QUERY | TOKEN_ADJUST_PRIVILEGES, out token))
                 return;
             try
