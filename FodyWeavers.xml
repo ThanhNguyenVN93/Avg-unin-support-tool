@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
+  <!--
+    Costura embeds all CopyLocal=true assemblies into the exe.
+    GAC assemblies (System.*, Microsoft.*) are CopyLocal=false by default,
+    so they are NOT embedded — they are already present on every Windows machine.
+    If a future NuGet package is added its DLLs will be embedded automatically.
+  -->
+  <Costura
+    CreateTemporaryAssemblies="false"
+    DisableCompression="false"
+    IncludeDebugSymbols="false" />
+</Weavers>

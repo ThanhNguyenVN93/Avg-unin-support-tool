@@ -9,6 +9,12 @@ obj/
 *.userosscache
 *.sln.docstates
 
+# NuGet
+packages/
+nuget.exe
+*.nupkg
+FodyWeavers.xsd
+
 # Logs & temp
 *.log
 *.tmp
