@@ -64,10 +64,8 @@ namespace frm_avg_unin_support_tool
         internal static bool BackupNetworkSettings(string backupFile)
         {
             Logger.Write("WindowsSystemCommands: BackupNetworkSettings → {0}", backupFile);
-            int exit = Program.RunSysCmd("netsh.exe",
-                "interface dump > \"" + backupFile + "\"");
-            // netsh dump uses shell redirect; run via cmd /c for redirection to work
-            exit = RunViaCmd("netsh interface dump > \"" + backupFile + "\"");
+            // netsh dump uses shell redirect (>), so must run via cmd /c
+            int exit = RunViaCmd("netsh interface dump > \"" + backupFile + "\"");
             if (exit != 0)
                 Logger.Write("BackupNetworkSettings: exited {0}", exit);
             return exit == 0;

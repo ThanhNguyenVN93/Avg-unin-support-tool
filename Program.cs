@@ -21,7 +21,7 @@ namespace frm_avg_unin_support_tool
         private const string MutexName = "Global\\AvgClearToolSingleInstance";
 
         // ── Registry keys ──────────────────────────────────────────────────────
-        private const string RunPath           = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+        private const string RunPath           = @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce";
         private const string RunKey            = "*AvgClearTool";
         private const string FlagRegKey        = @"SOFTWARE\AvgClearTool";
         private const string FlagDoneValue     = "CleanupDone";
@@ -283,8 +283,11 @@ namespace frm_avg_unin_support_tool
             Logger.Write("HandleSafeMode");
             CleanOldTemp();
 
-            // Always remove autologon credentials first (security: clear password ASAP)
-            AutoLogon.Remove();
+            // Only clear autologon if this tool armed it; don't clobber pre-existing settings.
+            // Restore() deletes the original value when no backup exists, so an unconditional
+            // Remove() would destroy the user's own autologon configuration.
+            if (AutoLogon.IsArmed())
+                AutoLogon.Remove();
 
             if (!SafeModeTriggerExists())
             {
@@ -343,10 +346,10 @@ namespace frm_avg_unin_support_tool
             DeleteSafeModeTrigger();
             WriteFlagDone();
 
-            _ = Task.Run(() => WindowsSystemCommands.RestartForced(30));
-
-            MessageBox.Show(Strings.RestartingNow, Strings.AppTitle,
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // In Safe Mode there is no interactive shell, so a blocking MessageBox may
+            // never reach the foreground. Restart immediately — the flag is already written
+            // so the Normal Mode post-cleanup run will show the DoneForm on next login.
+            Logger.Write("HandleSafeMode: restarting now");
             WindowsSystemCommands.RestartImmediate();
         }
 
