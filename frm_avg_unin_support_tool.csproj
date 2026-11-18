@@ -63,6 +63,7 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="AutoLogon.cs" />
+    <Compile Include="AvgClearAutomation.cs" />
     <Compile Include="AvgClearDownloader.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Program.cs" />

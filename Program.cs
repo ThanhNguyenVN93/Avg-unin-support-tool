@@ -381,6 +381,9 @@ namespace frm_avg_unin_support_tool
 
                 if (proc != null)
                 {
+                    // Automate the avgclear UI on a background thread (non-fatal if it fails)
+                    AvgClearAutomation.RunAsync();
+
                     bool finished = proc.WaitForExit(AvgClearTimeoutMs);
                     if (!finished)
                     {
