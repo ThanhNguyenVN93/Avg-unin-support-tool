@@ -29,6 +29,7 @@ namespace frm_avg_unin_support_tool
         private TextBox       _txtPassword;
         private Button        _btnLang;
         private LinkLabel     _lnkUpdate;
+        private string        _pendingUpdateTag;
         private TableLayoutPanel _table;
 
         // ── Fonts (disposed in OnFormClosed) ──────────────────────────────────
@@ -326,6 +327,7 @@ namespace frm_avg_unin_support_tool
             BeginInvoke(new Action(() =>
             {
                 if (IsDisposed) return;
+                _pendingUpdateTag  = latestTag;
                 _lnkUpdate.Text    = Strings.UpdateAvailable(latestTag);
                 _lnkUpdate.Tag     = downloadUrl;
                 _lnkUpdate.Visible = true;
@@ -335,11 +337,35 @@ namespace frm_avg_unin_support_tool
         private void OnUpdateLinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             string url = _lnkUpdate.Tag as string;
-            if (!string.IsNullOrEmpty(url))
+            if (string.IsNullOrEmpty(url))
+                return;
+
+            // If the release has no downloadable .exe asset, fall back to opening
+            // the release page so the user can grab it manually.
+            if (!url.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
             {
                 try { Process.Start(url); }
                 catch (Exception ex) { Logger.WriteException("Form1.UpdateLink", ex); }
+                return;
             }
+
+            _lnkUpdate.Enabled = false;
+            _lnkUpdate.Text    = Strings.UpdateDownloading;
+
+            Updater.DownloadAndApply(url, error =>
+            {
+                if (IsDisposed || !IsHandleCreated) return;
+                BeginInvoke(new Action(() =>
+                {
+                    if (IsDisposed) return;
+                    _lnkUpdate.Enabled = true;
+                    _lnkUpdate.Text    = Strings.UpdateAvailable(_pendingUpdateTag ?? "");
+                    MessageBox.Show(Strings.UpdateFailed(error), Strings.AppTitle,
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }));
+            });
+            // On success, Updater.DownloadAndApply calls Application.Exit() itself —
+            // this process relaunches as the new version via the staged script.
         }
 
         // ── Disposal ──────────────────────────────────────────────────────────

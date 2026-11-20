@@ -123,8 +123,16 @@ namespace frm_avg_unin_support_tool
 
         // ── Update footer ─────────────────────────────────────────────────────
         public static string UpdateAvailable(string ver) => Vi
-            ? $"Có phiên bản mới: v{ver} — Nhấn để tải"
-            : $"Update available: v{ver} — Click to download";
+            ? $"Có phiên bản mới: v{ver} — Nhấn để cập nhật"
+            : $"Update available: v{ver} — Click to update";
+
+        public static string UpdateDownloading => Vi
+            ? "Đang tải bản cập nhật..."
+            : "Downloading update...";
+
+        public static string UpdateFailed(string reason) => Vi
+            ? $"Không thể cập nhật tự động: {reason}"
+            : $"Automatic update failed: {reason}";
 
         // ── Help ──────────────────────────────────────────────────────────────
         public static string HelpText =>
