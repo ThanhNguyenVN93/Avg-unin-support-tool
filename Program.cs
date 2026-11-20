@@ -15,7 +15,7 @@ namespace frm_avg_unin_support_tool
     internal static class Program
     {
         // ── Version ────────────────────────────────────────────────────────────
-        public const string AppVersion = "1.2.0";
+        public const string AppVersion = "1.1.1";
 
         // ── Mutex / single-instance ────────────────────────────────────────────
         private const string MutexName = "Global\\AvgClearToolSingleInstance";
