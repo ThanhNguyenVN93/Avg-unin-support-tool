@@ -382,8 +382,9 @@ namespace frm_avg_unin_support_tool
                 if (proc != null)
                 {
                     // Automate the avgclear UI on a background thread (non-fatal if it fails)
-                    AvgClearAutomation.RunAsync();
+                    var automationThread = AvgClearAutomation.RunAsync();
 
+                    var sw = Stopwatch.StartNew();
                     bool finished = proc.WaitForExit(AvgClearTimeoutMs);
                     if (!finished)
                     {
@@ -392,8 +393,21 @@ namespace frm_avg_unin_support_tool
                     }
                     else
                     {
-                        Logger.Write("RunAvgClearProcess: exited with code {0}", proc.ExitCode);
+                        // avgclear.exe is a self-extract bootstrap: this process can exit
+                        // long before the real removal is done. Do NOT treat this exit as
+                        // "uninstall finished" — wait for the automation thread, which only
+                        // returns once it has clicked Restart-later/Restart-now (or given up).
+                        Logger.Write("RunAvgClearProcess: launcher process exited with code {0} " +
+                                     "(self-extract bootstrap — waiting for automation to confirm real completion)",
+                                     proc.ExitCode);
                     }
+
+                    long remainingMs = AvgClearTimeoutMs - sw.ElapsedMilliseconds;
+                    if (remainingMs < 0) remainingMs = 0;
+                    if (!automationThread.Join((int)Math.Min(remainingMs, int.MaxValue)))
+                        Logger.Write("RunAvgClearProcess: automation thread still running after timeout — proceeding anyway");
+                    else
+                        Logger.Write("RunAvgClearProcess: automation thread finished — removal confirmed complete");
                 }
             }
             finally { proc?.Dispose(); }

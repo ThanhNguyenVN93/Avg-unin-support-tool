@@ -101,10 +101,16 @@ namespace frm_avg_unin_support_tool
         // ── Public API ────────────────────────────────────────────────────────
 
         // Launches automation on a background thread. Non-blocking.
-        internal static void RunAsync()
+        // Returns the Thread so the caller can Join() it — the avgclear.exe
+        // process itself (a self-extract bootstrap) can exit well before the
+        // real removal finishes, so callers must not treat process exit as
+        // "done"; they must wait for this thread (which waits for the actual
+        // Restart-later/Restart-now button) instead.
+        internal static Thread RunAsync()
         {
             var t = new Thread(Run) { IsBackground = true, Name = "AvgClearAuto" };
             t.Start();
+            return t;
         }
 
         // ── Automation sequence ───────────────────────────────────────────────
